@@ -1,22 +1,26 @@
 param location string
 param storageAccountName string
-param appSvcName string
+param aspName string
+param appName string
 param databaseServerName string
 param databaseName string
 param databaseAdminUser string
 @secure()
 param databaseAdminPassword string
 param appServiceSubnetId string
+param drupalProfile string
+param drupalUsername string
+param drupalPassword string
 
 resource storage 'Microsoft.Storage/storageAccounts@2021-08-01' existing = {
   name: storageAccountName
 }
 
-resource appSvcPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
-  name: '${appSvcName}-plan'
+resource aspPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
+  name: aspName
   location: location  
   sku: {
-    name: 'P1v3'
+    name: 'S1'
   }
   kind: 'linux'
   properties: {
@@ -25,17 +29,17 @@ resource appSvcPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
 }
 
 resource appSvc 'Microsoft.Web/sites@2021-03-01' = {
-  name: '${appSvcName}-web'
+  name: appName
   location: location
   kind: 'app,linux,container'
   properties: {
-    serverFarmId: appSvcPlan.id
+    serverFarmId: aspPlan.id
     siteConfig: {
        linuxFxVersion: 'DOCKER|bitnami/drupal-nginx:latest'
     }    
   }
 
-  resource web 'config' = {
+  resource webApp 'config' = {
     name: 'web'
     properties: {
       appSettings: [
@@ -64,8 +68,20 @@ resource appSvc 'Microsoft.Web/sites@2021-03-01' = {
           value: databaseAdminUser
         }
         {
+          name: 'DRUPAL_PROFILE'
+          value: drupalProfile
+        }
+        {
+          name: 'DRUPAL_USERNAME'
+          value: drupalUsername
+        }
+        {
+          name: 'DRUPAL_PASSWORD'
+          value: drupalPassword
+        }
+        {
           name: 'WEBSITES_CONTAINER_START_TIME_LIMIT'
-          value: '1200'
+          value: '12000'
         }
         {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'

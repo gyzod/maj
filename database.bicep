@@ -4,8 +4,9 @@ param databaseName string
 param databaseAdminUser string
 @secure()
 param databaseAdminPassword string
-param vnetId string
 param privateEndpointSubnetId string
+param databasePrivateDnsId string
+
 
 resource databaseServer 'Microsoft.DBforMariaDB/servers@2018-06-01' = {
   name: databaseServerName
@@ -25,21 +26,6 @@ resource databaseServer 'Microsoft.DBforMariaDB/servers@2018-06-01' = {
 
   resource database 'databases' = {
     name: databaseName
-  }
-}
-
-resource privatedns 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.mariadb.database.azure.com'
-  location: 'global'
-  resource vnetLink 'virtualNetworkLinks' = {
-    name: 'mariadb-link'
-    location: 'global'
-    properties: {
-      virtualNetwork: {
-        id: vnetId
-      }
-      registrationEnabled: false
-    }
   }
 }
 
@@ -63,14 +49,14 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
     ]
   }
   
-  resource privatednsGroup 'privateDnsZoneGroups' = {
+  resource databaseprivatednsGroup 'privateDnsZoneGroups' = {
     name: 'mariadbServer'
     properties: {
       privateDnsZoneConfigs: [
         {
           name: 'mariadbServer'
           properties: {
-            privateDnsZoneId: privatedns.id
+            privateDnsZoneId: databasePrivateDnsId
           }
         }
       ]

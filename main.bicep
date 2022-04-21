@@ -1,86 +1,105 @@
-param location string = resourceGroup().location
-param storageAccountName string = 'stg${uniqueString(resourceGroup().name)}'
-param appSvcName string = 'appsvc-${uniqueString(resourceGroup().name)}'
-param databaseServerName string = 'dbsrv-${uniqueString(resourceGroup().name)}'
-param databaseName string = 'drupal'
-param databaseAdminUser string
+/* INPUT */
+param clientName string
+param appName string
+param envName string
 @secure()
 param databaseAdminPassword string
 
-resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
-  name: 'vnet'
+/* Paramètres fixes */
+param vnetResourceGroupName string = 'UL-RES'
+param vnetName string = 'SWRE-VNET'
+param location string = 'canadaeast'
+
+/* Noms dynamiques des ressources */
+param resourceGroupName string = '${toLower(clientName)}-${toLower(appName)}-${toLower(envName)}-maj'
+param storageAccountName string = '${toLower(clientName)}${toLower(appName)}${toLower(envName)}stk'
+
+/* Resources réutilisées */
+param aspName string = '${toLower(clientName)}-${toLower(envName)}-asp'
+param databaseServerName string = '${toLower(clientName)}-${toLower(envName)}-db'
+param databaseName string = resourceGroupName
+param databaseAdminUser string = 'administrateur'
+
+@allowed([
+  'demo_umami'
+  'standard'
+  'minimal'
+])
+param drupalProfile string
+
+param drupalUsername string
+@secure()
+param drupalPassword string
+
+targetScope = 'subscription'
+
+resource rg 'Microsoft.Resources/resourceGroups@2021-01-01' = {
+  name: resourceGroupName
   location: location
-  properties: {
-    addressSpace: {
-       addressPrefixes: [
-        '10.10.0.0/21'
-       ]
-    }
-    subnets: [
-      {
-        name: 'app-service'
-        properties: {
-          addressPrefix: '10.10.0.0/24'
-          delegations: [
-            {
-              name: 'Microsoft.Web/serverfarms'
-              properties: {
-                serviceName: 'Microsoft.Web/serverfarms'
-              }
-            }
-          ]
-        }
-      }
-      {
-        name: 'private-endpoints'
-        properties: {
-          addressPrefix: '10.10.1.0/24'
-          privateEndpointNetworkPolicies: 'Disabled'
-        }
-      }
-    ]    
-  }
 }
 
-module storage 'storage.bicep' = {
+module networkModule 'network.bicep' = {
+  scope: resourceGroup(vnetResourceGroupName)
+  name: 'vnet'
+  params: {
+    aspName : aspName
+    location: location
+    vnetName: vnetName
+  }  
+}
+
+module storageModule 'storage.bicep' = {
+  scope: resourceGroup(resourceGroupName)
   name: 'storage'
   params: {
     location: location
     storageAccountName: storageAccountName
   }  
+  dependsOn: [
+    rg
+  ]
 }
 
-module securestorage 'secure-storage.bicep' = {
+module securestorageModule 'secure-storage.bicep' = {
+  scope: resourceGroup(resourceGroupName)
   name: 'secure-storage'
   params: {
     location: location
     storageAccountName: storageAccountName
-    vnetId: vnet.id
-    privateEndpointSubnetId: vnet.properties.subnets[1].id
+    privateEndpointSubnetId: networkModule.outputs.subnetPEId  
+    storagePrivateDnsId: networkModule.outputs.storagePrivateDnsId
   }
   dependsOn: [
-    storage
+    storageModule
+    networkModule
   ]
 }
 
-module appservice 'appservice.bicep' = {
+module appserviceModule 'appservice.bicep' = {
+  scope: resourceGroup(resourceGroupName)
   name: 'appservice'
   params: {
+    drupalProfile: drupalProfile
     location: location
     storageAccountName: storageAccountName
-    appSvcName: appSvcName
+    aspName: aspName
+    appName: resourceGroupName
     databaseServerName: databaseServerName
     databaseName: databaseName
     databaseAdminUser: databaseAdminUser
     databaseAdminPassword: databaseAdminPassword
-    appServiceSubnetId: vnet.properties.subnets[0].id
+    appServiceSubnetId: networkModule.outputs.subnetAppsId
+    drupalPassword: drupalPassword
+    drupalUsername: drupalUsername
   }  
   dependsOn: [
-    securestorage
+    securestorageModule
+    networkModule
   ]
 }
 
-module registry 'database.bicep' = {
+module databaseModule 'database.bicep' = {
+  scope: resourceGroup(resourceGroupName)
   name: 'database'
   params: {
     location: location
@@ -88,7 +107,10 @@ module registry 'database.bicep' = {
     databaseName: databaseName
     databaseAdminUser: databaseAdminUser
     databaseAdminPassword: databaseAdminPassword
-    vnetId: vnet.id
-    privateEndpointSubnetId: vnet.properties.subnets[1].id    
+    privateEndpointSubnetId: networkModule.outputs.subnetPEId   
+    databasePrivateDnsId: networkModule.outputs.databasePrivateDnsId 
   }
+  dependsOn: [
+    networkModule
+  ]
 }
