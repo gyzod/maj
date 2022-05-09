@@ -1,6 +1,5 @@
 param location string
 param storageAccountName string
-param aspName string
 param appName string
 param databaseServerName string
 param databaseName string
@@ -11,21 +10,10 @@ param appServiceSubnetId string
 param drupalProfile string
 param drupalUsername string
 param drupalPassword string
+param aspPlanId string
 
 resource storage 'Microsoft.Storage/storageAccounts@2021-08-01' existing = {
   name: storageAccountName
-}
-
-resource aspPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
-  name: aspName
-  location: location  
-  sku: {
-    name: 'S1'
-  }
-  kind: 'linux'
-  properties: {
-    reserved: true
-  }
 }
 
 resource appSvc 'Microsoft.Web/sites@2021-03-01' = {
@@ -33,7 +21,7 @@ resource appSvc 'Microsoft.Web/sites@2021-03-01' = {
   location: location
   kind: 'app,linux,container'
   properties: {
-    serverFarmId: aspPlan.id
+    serverFarmId: aspPlanId
     siteConfig: {
        linuxFxVersion: 'DOCKER|bitnami/drupal-nginx:latest'
     }    
