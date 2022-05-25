@@ -4,6 +4,12 @@ param appName string
 param envName string
 @secure()
 param databaseAdminPassword string
+@allowed([
+  'Standard_LRS'
+  'Premium_LRS'
+])
+param storageAccountSku string
+
 
 /* Paramètres fixes */
 param vnetResourceGroupName string = 'UL-RES'
@@ -54,6 +60,7 @@ module storageModule 'storage.bicep' = {
   params: {
     location: location
     storageAccountName: storageAccountName
+    storageAccountSku: storageAccountSku
   }  
   dependsOn: [
     rg
