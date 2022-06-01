@@ -2,14 +2,18 @@ param location string
 param storageAccountName string
 param privateEndpointSubnetId string
 param storagePrivateDnsId string
+param storageAccountSku string
 
-resource storage 'Microsoft.Storage/storageAccounts@2021-08-01' = {
+resource storage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: storageAccountName
   location: location
   sku: {
-    name: 'Premium_LRS'
+    name: storageAccountSku
   }
-  kind: 'FileStorage'
+
+  //kind: 'FileStorage' ou 'StorageV2' selon le SKU
+  kind: ((storageAccountSku == 'Premium_LRS') ? 'FileStorage' :  'StorageV2')
+  
   properties: {
     publicNetworkAccess: 'Disabled'
   }    

@@ -95,6 +95,7 @@ module securestorageModule 'secure-storage.bicep' = {
     storageAccountName: storageAccountName
     privateEndpointSubnetId: networkModule.outputs.subnetPEId
     storagePrivateDnsId: networkModule.outputs.storagePrivateDnsId
+    storageAccountSku: storageAccountSku
   }
   dependsOn: [
     storageModule
